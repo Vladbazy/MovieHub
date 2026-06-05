@@ -1,15 +1,22 @@
 import requests
-from config import OMDB_API_KEY
+from bs4 import BeautifulSoup
 
-def get_movie_from_api(title: str) -> dict:
-    """Получает данные о фильме через REST API (JSON)"""
-    url = f"http://www.omdbapi.com/?t={title}&apikey={OMDB_API_KEY}&plot=short"
+def get_top_movies_from_html() -> list:
+    """Получает топ фильмов методом парсинга HTML-кода страницы"""
+    url = "https://www.imdb.com/chart/top/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
-        data = response.json()
-        if data.get("Response") == "True":
-            return data
-        return {"Error": data.get("Error", "Фильм не найден")}
-    except requests.exceptions.RequestException as e:
-        return {"Error": f"Ошибка сети: {str(e)}"}
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        movies = []
+        titles = soup.select('h3.ipc-title__text')
+        for i, title in enumerate(titles[:5]):
+            movies.append(f"{i+1}. {title.get_text()}")
+            
+        return movies if movies else ["Не удалось спарсить данные"]
+    except Exception as e:
+        return [f"Ошибка при скрапинге: {str(e)}"]
